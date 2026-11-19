@@ -226,18 +226,17 @@ QUALITY
 cooldowns = load_cooldowns()
 
 with open("symbols.txt", "r") as f:
-
     symbols = [
-        line.strip()
-        for line in f.readlines()
+        s.strip()
+        for s in f.readlines()
+        if s.strip()
     ]
+
+signals_found = 0
 
 for symbol in symbols:
 
-    if in_cooldown(
-        symbol,
-        cooldowns
-    ):
+    if in_cooldown(symbol, cooldowns):
         continue
 
     signal = scan_stock(symbol)
@@ -245,6 +244,8 @@ for symbol in symbols:
     if signal:
 
         send_telegram(signal)
+
+        signals_found += 1
 
         update_cooldown(
             symbol,
@@ -275,6 +276,9 @@ Stocks Scanned: {len(symbols)}
 
 Signals Found: {signals_found}
 """
+    )
+
+print("Scan complete.")
     )
 
 print("Scan complete.")
