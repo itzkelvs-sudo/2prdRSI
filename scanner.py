@@ -34,7 +34,7 @@ for symbol in symbols:
 
         df = yf.download(
             symbol,
-            period="3mo",
+            period="1y",
             interval="1d",
             auto_adjust=True,
             progress=False
