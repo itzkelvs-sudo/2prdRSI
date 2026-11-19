@@ -7,7 +7,6 @@ on:
   workflow_dispatch:
 
 jobs:
-
   scan:
 
     runs-on: ubuntu-latest
@@ -36,17 +35,14 @@ jobs:
         run: |
           python scanner.py
 
-     - name: Save Scanner State
-  run: |
-    git config user.name github-actions
-    git config user.email github-actions@github.com
+      - name: Save Scanner State
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
 
-    git add .
+          git add cooldowns.json
+          git add watchlist.json
 
-    git diff --staged --quiet || git commit -m "Update scanner state"
-
-    git push
-
-          git diff --staged --quiet || git commit -m "Update cooldowns"
+          git diff --staged --quiet || git commit -m "Update scanner state"
 
           git push
