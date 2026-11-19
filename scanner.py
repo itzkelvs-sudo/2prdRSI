@@ -253,4 +253,28 @@ for symbol in symbols:
 
 save_cooldowns(cooldowns)
 
+if signals_found == 0:
+
+    send_telegram(
+        f"""
+✅ 2prdRSI Scan Complete
+
+Stocks Scanned: {len(symbols)}
+
+No qualifying setups found.
+"""
+    )
+
+else:
+
+    send_telegram(
+        f"""
+✅ 2prdRSI Scan Complete
+
+Stocks Scanned: {len(symbols)}
+
+Signals Found: {signals_found}
+"""
+    )
+
 print("Scan complete.")
