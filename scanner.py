@@ -1,16 +1,19 @@
 import json
 import os
+from datetime import datetime
+
 import requests
 import yfinance as yf
 import pandas as pd
-from datetime import datetime
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
 
 COOLDOWN_DAYS = 5
 
+
 def send_telegram(message):
+
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
 
     requests.post(
@@ -50,7 +53,7 @@ def load_cooldowns():
 def save_cooldowns(data):
 
     with open("cooldowns.json", "w") as f:
-        json.dump(data, f)
+        json.dump(data, f, indent=4)
 
 
 def in_cooldown(symbol, cooldowns):
@@ -78,133 +81,155 @@ def update_cooldown(symbol, cooldowns):
 
 def scan_stock(symbol):
 
-    df = yf.download(
-        symbol,
-        period="1y",
-        interval="1d",
-        auto_adjust=True,
-        progress=False
-    )
+    try:
 
-    if len(df) < 250:
-        return None
+        df = yf.download(
+            symbol,
+            period="1y",
+            interval="1d",
+            auto_adjust=True,
+            progress=False
+        )
 
-    df["SMA200"] = (
-        df["Close"]
-        .rolling(200)
-        .mean()
-    )
+        if len(df) < 220:
+            return None
 
-    df["RSI2"] = calculate_rsi(
-        df["Close"]
-    )
+        df["SMA200"] = (
+            df["Close"]
+            .rolling(200)
+            .mean()
+        )
 
-    latest = df.iloc[-1]
-    previous = df.iloc[-2]
+        df["RSI2"] = calculate_rsi(
+            df["Close"]
+        )
 
-    trend_filter = (
-        latest["Close"] >
-        latest["SMA200"]
-    )
+        latest = df.iloc[-1]
+        previous = df.iloc[-2]
 
-    double7 = (
-        latest["Low"] <=
-        df["Low"].tail(7).min()
-    )
+        trend_filter = (
+            latest["Close"] >
+            latest["SMA200"]
+        )
 
-    oversold = (
-        latest["RSI2"] < 5
-    )
+        lowest7 = (
+            df["Low"]
+            .rolling(7)
+            .min()
+            .iloc[-1]
+        )
 
-    reversal = (
-        latest["RSI2"] >
-        previous["RSI2"]
-        and
-        latest["Close"] >
-        previous["Close"]
-    )
+        double7 = (
+            latest["Low"] <= lowest7
+        )
 
-    if not (
-        trend_filter
-        and double7
-        and oversold
-        and reversal
-    ):
-        return None
+        oversold = (
+            latest["RSI2"] < 5
+        )
 
-    if latest["RSI2"] < 1:
-        quality = "🔴 EXTREME"
-        stars = "★★★★★"
+        reversal = (
+            latest["RSI2"] >
+            previous["RSI2"]
+            and
+            latest["Close"] >
+            previous["Close"]
+        )
 
-    elif latest["RSI2"] < 2:
-        quality = "🟠 STRONG"
-        stars = "★★★★"
+        if not all([
+            trend_filter,
+            double7,
+            oversold,
+            reversal
+        ]):
+            return None
 
-    else:
-        quality = "🟡 OVERSOLD"
-        stars = "★★★"
+        rsi_value = float(latest["RSI2"])
 
-    current_price = float(
-        latest["Close"]
-    )
+        if rsi_value < 1:
+            quality = "🔴 EXTREME"
+            stars = "★★★★★"
 
-    entry_limit = round(
-        current_price * 0.998,
-        2
-    )
+        elif rsi_value < 2:
+            quality = "🟠 STRONG"
+            stars = "★★★★"
 
-    target5 = round(
-        df["High"].tail(5).max(),
-        2
-    )
+        else:
+            quality = "🟡 OVERSOLD"
+            stars = "★★★"
 
-    target7 = round(
-        df["High"].tail(7).max(),
-        2
-    )
+        close = float(latest["Close"])
 
-    return f"""
+        entry_limit = round(
+            close * 0.998,
+            2
+        )
+
+        target5 = round(
+            df["High"].tail(5).max(),
+            2
+        )
+
+        target7 = round(
+            df["High"].tail(7).max(),
+            2
+        )
+
+        message = f"""
 🔥 2prdRSI ENTRY SIGNAL
 
 {symbol}
 
-Price:
-${current_price:.2f}
+━━━━━━━━━━━
 
-RSI(2):
-{previous['RSI2']:.2f}
-→
-{latest['RSI2']:.2f}
+Price
+${close}
 
-Trend:
+RSI(2)
+{previous['RSI2']:.2f} → {latest['RSI2']:.2f}
+
+Trend
 ✅ Above 200 SMA
 
-Double-7:
+Double-7
 ✅ New 7-Day Low
 
-Entry Limit:
+━━━━━━━━━━━
+
+ENTRY LIMIT
 ${entry_limit}
 
-Target 1:
+TARGET 1
 ${target5}
 
-Target 2:
+TARGET 2
 ${target7}
 
-Quality:
-{quality}
+━━━━━━━━━━━
 
+QUALITY
+
+{quality}
 {stars}
 """
+
+        return message
+
+    except Exception as e:
+
+        print(
+            f"Error scanning {symbol}: {e}"
+        )
+
+        return None
 
 
 cooldowns = load_cooldowns()
 
-with open("symbols.txt") as f:
+with open("symbols.txt", "r") as f:
 
     symbols = [
-        x.strip()
-        for x in f.readlines()
+        line.strip()
+        for line in f.readlines()
     ]
 
 for symbol in symbols:
@@ -227,3 +252,5 @@ for symbol in symbols:
         )
 
 save_cooldowns(cooldowns)
+
+print("Scan complete.")
