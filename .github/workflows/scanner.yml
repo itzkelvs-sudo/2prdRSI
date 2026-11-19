@@ -1,0 +1,34 @@
+name: 2prdRSI
+
+on:
+  schedule:
+    - cron: '0 */1 * * *'
+
+  workflow_dispatch:
+
+j*bs:
+
+  scan:
+
+    runs-on: ubuntu-*atest
+
+    steps:
+
+    - uses: act*ons/checkout@v4
+
+    - name: Setup*Python
+
+      uses: actions/setup-*ython@v5
+
+      with:
+        pyth*n-version: "3.11"
+
+    - name: Ins*all
+
+      run: |
+        pip inst*ll -r requirements.txt
+
+    - name* Run Scanner
+
+      run: |
+       *python scanner.py
