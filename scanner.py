@@ -18,13 +18,12 @@ def send_telegram(message):
 
 send_telegram("🚀 2prdRSI Scan Started")
 
-symbols = [
-    "SPY",
-    "QQQ",
-    "AAPL",
-    "MSFT",
-    "NVDA"
-]
+with open("symbols.txt", "r") as f:
+    symbols = [
+        s.strip()
+        for s in f.readlines()
+        if s.strip()
+    ]
 
 signals_found = 0
 
