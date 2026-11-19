@@ -4,31 +4,28 @@ on:
   schedule:
     - cron: '0 */1 * * *'
 
-  workflow_dispatch:
+  workflow_dispatc*:
 
-j*bs:
-
+jobs:
   scan:
 
-    runs-on: ubuntu-*atest
+    runs-on: ubu*tu-latest
 
     steps:
+    - uses: *ctions/checkout@v4
 
-    - uses: act*ons/checkout@v4
-
-    - name: Setup*Python
-
-      uses: actions/setup-*ython@v5
-
+    - name: Se*up Python
+      uses: actions/setu*-python@v5
       with:
-        pyth*n-version: "3.11"
+        pyt*on-version: "3.11"
 
-    - name: Ins*all
-
+    - name: In*tall Dependencies
       run: |
-        pip inst*ll -r requirements.txt
+   *    pip install -r requirements.tx*
 
-    - name* Run Scanner
-
+    - name: Run Scanner
+      en*:
+        BOT_TOKEN: ${{ secrets.B*T_TOKEN }}
+        CHAT_ID: ${{ se*rets.CHAT_ID }}
       run: |
-       *python scanner.py
+     *  python scanner.py
