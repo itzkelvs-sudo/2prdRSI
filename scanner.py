@@ -3,7 +3,7 @@
 2prdRSI scanner - fast version
 ==============================
 Your logic is unchanged:
-  Stage 1  SETUP      above the 200-day SMA + today's low <= the lowest low of the last 7 bars + RSI(2) < 5
+  Stage 1  SETUP      above the 200-day SMA + today's low <= the lowest low of the last 7 bars + RSI(2) < RSI_LEVEL (2)
   Stage 2  CONFIRMED  later, RSI(2) rises AND the close rises  -> "ENTRY CONFIRMED" with entry limit and 2 targets
 Same environment variables (BOT_TOKEN, CHAT_ID) and state files (watchlist.json, cooldowns.json).
 
@@ -44,7 +44,8 @@ CHAT_ID = os.getenv("CHAT_ID")
 COOLDOWN_DAYS = 5
 WATCH_MAX_AGE = 5            # bars a setup may wait for its reversal
 RSI_SMOOTHING = "wilder"     # "wilder" (Connors) or "simple" (your original rolling mean)
-RSI_LEVEL = 2
+RSI_LEVEL = 2                # Stage 1 needs RSI(2) below this (was 5: too many setups)
+NOTIFY_SETUPS = True         # False = no 'SETUP DETECTED' messages, only 'ENTRY CONFIRMED'
 LOW_BARS = 7
 SEND_START_MESSAGE = True
 CHUNK = 100                  # symbols per Yahoo request
@@ -60,6 +61,22 @@ FALLBACK_SP500 = ["AAPL", "MSFT", "NVDA", "AMZN", "GOOGL", "META", "TSLA", "BRK-
                   "BAC", "MCD", "TMO", "NFLX", "AMD", "ORCL", "CSCO", "ACN", "LIN", "ABT", "DHR", "TXN", "QCOM"]
 
 FOREX = ["EURUSD=X", "GBPUSD=X", "USDJPY=X", "AUDUSD=X", "NZDUSD=X", "USDCAD=X", "USDCHF=X"]
+
+
+# ════════════════════════════ MARKET LABELS / PRICE FORMAT ════════════════════════════
+def is_forex(symbol):
+    return symbol.endswith("=X")
+
+
+def tag(symbol):
+    return "💱 FOREX" if is_forex(symbol) else "📈 STOCK"
+
+
+def fmt(symbol, x):
+    """Stocks: $123.45. Forex: 1.08423 (JPY pairs 151.234) - two decimals would make forex levels useless."""
+    if is_forex(symbol):
+        return f"{x:.3f}" if "JPY" in symbol else f"{x:.5f}"
+    return f"${x:,.2f}"
 
 
 # ════════════════════════════ TELEGRAM ════════════════════════════
@@ -228,6 +245,8 @@ def check_watch(df, setup_day):
         ks = next((i for i, d in enumerate(days) if d >= setup_day), None)
         if ks is None:
             return "keep", setup_day
+    if not is_setup(df, ks):                                      # e.g. saved under the old RSI < 5 rule
+        return "drop", "setup bar no longer meets the current rules (RSI level / trend / 7-bar low)"
     for k in range(ks + 1, len(df)):
         if is_setup(df, k):                                       # a fresh setup bar: the wait restarts here
             ks = k
@@ -252,7 +271,7 @@ def main():
     if SEND_START_MESSAGE:
         send_telegram("🚀 2prdRSI Scan Started")
 
-    symbols = load_sp500() + FOREX 
+    symbols = load_sp500() + FOREX
     symbols = list(dict.fromkeys(symbols))
     data = download_all(symbols)
     print(f"downloaded {len(data)}/{len(symbols)} symbols in {time.time() - t0:.0f}s")
@@ -280,10 +299,10 @@ def main():
                     kk = info
                     row, prev = df.iloc[kk], df.iloc[kk - 1]
                     close_price = float(row["Close"])
-                    entry_limit = round(close_price * 0.998, 2)
-                    target5 = round(float(df["High"].iloc[max(0, kk - 4):kk + 1].max()), 2)
-                    target7 = round(float(df["High"].iloc[max(0, kk - 6):kk + 1].max()), 2)
-                    send_telegram(f"""🚀 ENTRY CONFIRMED
+                    entry_limit = close_price * 0.998
+                    target5 = float(df["High"].iloc[max(0, kk - 4):kk + 1].max())
+                    target7 = float(df["High"].iloc[max(0, kk - 6):kk + 1].max())
+                    send_telegram(f"""🚀 ENTRY CONFIRMED · {tag(symbol)}
 
 {symbol}
 
@@ -291,16 +310,16 @@ RSI(2):
 {prev['RSI2']:.2f} → {row['RSI2']:.2f}
 
 Current Price:
-${close_price:.2f}
+{fmt(symbol, close_price)}
 
 Entry Limit:
-${entry_limit}
+{fmt(symbol, entry_limit)}
 
 Target 1:
-${target5}
+{fmt(symbol, target5)}
 
 Target 2:
-${target7}""")
+{fmt(symbol, target7)}""")
                     cooldowns[symbol] = now_utc().isoformat()
                     del watchlist[symbol]
                     signals_found += 1
@@ -310,19 +329,19 @@ ${target7}""")
             # ---- Stage 1: a new setup on the latest bar
             if symbol not in watchlist and not in_cooldown(symbol, cooldowns) and is_setup(df, k):
                 watchlist[symbol] = {"date": now_utc().isoformat(), "bar": day}
-                send_telegram(f"""🟡 SETUP DETECTED
+                if NOTIFY_SETUPS:
+                    send_telegram(f"""🟡 SETUP DETECTED · {tag(symbol)}
 
 {symbol}
 
 RSI(2): {latest['RSI2']:.2f}
 
-Price: ${float(latest['Close']):.2f}
+Price: {fmt(symbol, float(latest['Close']))}
 
 ✅ Above 200 SMA
 ✅ Double-7 Low
 
 Waiting for reversal confirmation.""")
-
         except Exception as exc:                                  # noqa: BLE001
             print(f"{symbol} error: {exc}")
 
@@ -333,8 +352,9 @@ Waiting for reversal confirmation.""")
     send_telegram(f"""✅ 2prdRSI Scan Complete
 
 Markets Scanned: {len(data)} of {len(symbols)}
+(stocks {sum(1 for x in data if not is_forex(x))}, forex {sum(1 for x in data if is_forex(x))})
 
-Watchlist Size: {len(watchlist)}
+Watchlist Size: {len(watchlist)} (stocks {sum(1 for x in watchlist if not is_forex(x))}, forex {sum(1 for x in watchlist if is_forex(x))})
 
 Confirmed Entries: {signals_found}""" + (f"\n\nSignals:\n{tickers}" if signals_found else ""))
     print(f"Scan complete in {time.time() - t0:.0f}s.")
