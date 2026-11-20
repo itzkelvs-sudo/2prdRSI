@@ -44,7 +44,7 @@ CHAT_ID = os.getenv("CHAT_ID")
 COOLDOWN_DAYS = 5
 WATCH_MAX_AGE = 5            # bars a setup may wait for its reversal
 RSI_SMOOTHING = "wilder"     # "wilder" (Connors) or "simple" (your original rolling mean)
-RSI_LEVEL = 5
+RSI_LEVEL = 2
 LOW_BARS = 7
 SEND_START_MESSAGE = True
 CHUNK = 100                  # symbols per Yahoo request
@@ -310,7 +310,14 @@ ${target7}""")
             # ---- Stage 1: a new setup on the latest bar
             if symbol not in watchlist and not in_cooldown(symbol, cooldowns) and is_setup(df, k):
                 watchlist[symbol] = {"date": now_utc().isoformat(), "bar": day}
-                send_telegram(f"""🟡 SETUP DETECTED
+                quality = "🟡 OVERSOLD"
+
+if latest["RSI2"] < 1:
+    quality = "🔴 EXTREME"
+elif latest["RSI2"] < 2:
+    quality = "🟠 STRONG"
+
+send_telegram(f"""{quality} SETUP DETECTED
 
 {symbol}
 
@@ -322,6 +329,7 @@ Price: ${float(latest['Close']):.2f}
 ✅ Double-7 Low
 
 Waiting for reversal confirmation.""")
+
         except Exception as exc:                                  # noqa: BLE001
             print(f"{symbol} error: {exc}")
 
