@@ -310,14 +310,7 @@ ${target7}""")
             # ---- Stage 1: a new setup on the latest bar
             if symbol not in watchlist and not in_cooldown(symbol, cooldowns) and is_setup(df, k):
                 watchlist[symbol] = {"date": now_utc().isoformat(), "bar": day}
-                quality = "🟡 OVERSOLD"
-
-if latest["RSI2"] < 1:
-    quality = "🔴 EXTREME"
-elif latest["RSI2"] < 2:
-    quality = "🟠 STRONG"
-
-send_telegram(f"""{quality} SETUP DETECTED
+                send_telegram(f"""🟡 SETUP DETECTED
 
 {symbol}
 
