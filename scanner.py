@@ -59,9 +59,7 @@ FALLBACK_SP500 = ["AAPL", "MSFT", "NVDA", "AMZN", "GOOGL", "META", "TSLA", "BRK-
                   "WMT", "MA", "PG", "AVGO", "HD", "CVX", "MRK", "ABBV", "KO", "PEP", "COST", "ADBE", "WFC", "CRM",
                   "BAC", "MCD", "TMO", "NFLX", "AMD", "ORCL", "CSCO", "ACN", "LIN", "ABT", "DHR", "TXN", "QCOM"]
 
-ETFS = ["SPY", "QQQ", "DIA", "IWM", "SMH", "SOXX", "XLK", "XLF", "XLE", "XLV"]
 FOREX = ["EURUSD=X", "GBPUSD=X", "USDJPY=X", "AUDUSD=X", "NZDUSD=X", "USDCAD=X", "USDCHF=X"]
-CRYPTO = ["BTC-USD", "ETH-USD", "SOL-USD", "XRP-USD", "ADA-USD", "DOGE-USD"]
 
 
 # ════════════════════════════ TELEGRAM ════════════════════════════
@@ -254,7 +252,7 @@ def main():
     if SEND_START_MESSAGE:
         send_telegram("🚀 2prdRSI Scan Started")
 
-    symbols = load_sp500() + ETFS + FOREX + CRYPTO
+    symbols = load_sp500() + FOREX 
     symbols = list(dict.fromkeys(symbols))
     data = download_all(symbols)
     print(f"downloaded {len(data)}/{len(symbols)} symbols in {time.time() - t0:.0f}s")
