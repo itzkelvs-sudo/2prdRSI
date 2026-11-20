@@ -1,48 +1,29 @@
-name: 2prdRSI
-
+name: 2prdRSI scan
 on:
   schedule:
-    - cron: '0 */1 * * *'
-
-  workflow_dispatch:
-
+    - cron: "30 6 * * *"          # every day 06:30 UTC, after the previous session's daily bars are complete
+  workflow_dispatch:              # manual run from the Actions tab
+permissions:
+  contents: write                 # saves watchlist.json, cooldowns.json and sp500_symbols.txt back to the repository
+concurrency:
+  group: rsi2-state
 jobs:
   scan:
-
     runs-on: ubuntu-latest
-
-    permissions:
-      contents: write
-
+    timeout-minutes: 20
     steps:
-
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
-
-      - name: Install Dependencies
-        run: |
-          pip install -r requirements.txt
-
-      - name: Run Scanner
+          python-version: "3.12"
+      - run: pip install yfinance pandas numpy requests lxml
+      - run: python rsi2_scanner.py
         env:
           BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
           CHAT_ID: ${{ secrets.CHAT_ID }}
+      - name: Save state
         run: |
-          python scanner.py
-
-      - name: Save Scanner State
-        run: |
-          git config --global user.name "github-actions"
-          git config --global user.email "github-actions@github.com"
-
-          git add cooldowns.json
-          git add watchlist.json
-
-          git diff --staged --quiet || git commit -m "Update scanner state"
-
-          git push
+          git config user.name "scanner-bot"
+          git config user.email "scanner-bot@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet || (git commit -m "Update 2prdRSI state" && git push)
